@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane xmlns="http://javafx.com/javafx/16"
+            xmlns:fx="http://javafx.com/fxml/1">
+
+    <VBox prefHeight="400.0" prefWidth="244.0">
+        <MenuBar prefHeight="26.0" prefWidth="244.0">
+            <Menu mnemonicParsing="false" text="File">
+                <MenuItem mnemonicParsing="false" text="Close" />
+            </Menu>
+            <Menu mnemonicParsing="false" text="Help">
+                <MenuItem mnemonicParsing="false" text="About" />
+            </Menu>
+        </MenuBar>
+
+        <ListView fx:id="filesListView" onKeyPressed="#sendFile2" prefHeight="337.0" prefWidth="244.0">
+            <VBox.margin>
+                <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+            </VBox.margin>
+        </ListView>
+
+        <TextField fx:id="inputField" onAction="#sendFile" prefHeight="35.0" prefWidth="244.0">
+            <VBox.margin>
+                <Insets bottom="2.0" left="2.0" right="2.0" />
+            </VBox.margin>
+        </TextField>
+    </VBox>
+
+</AnchorPane>
