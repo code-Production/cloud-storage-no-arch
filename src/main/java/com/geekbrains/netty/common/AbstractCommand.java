@@ -9,7 +9,7 @@ import java.io.Serializable;
 @Data
 @EqualsAndHashCode
 @AllArgsConstructor
-public class AbstractCommand implements Serializable  {
+public abstract class AbstractCommand implements Serializable  {
 
     private Commands command;
 

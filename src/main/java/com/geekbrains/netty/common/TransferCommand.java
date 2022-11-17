@@ -1,18 +1,15 @@
 package com.geekbrains.netty.common;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
-
 import java.io.File;
 
 @EqualsAndHashCode(callSuper = true)
-public class ReceiveCommand extends AbstractCommand {
+public class TransferCommand extends AbstractCommand {
 
-    private final File file;
-    private final long fileSize;
+    private File file;
+    private long fileSize;
 
-    public ReceiveCommand(Commands command, File file, long fileSize) {
+    public TransferCommand(Commands command, File file, long fileSize) {
         super(command);
         this.file = file;
         this.fileSize = fileSize;

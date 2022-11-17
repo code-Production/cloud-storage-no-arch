@@ -1,15 +1,12 @@
 package com.geekbrains.netty.server;
 
-import com.geekbrains.netty.common.AbstractCommand;
 import com.geekbrains.netty.common.Commands;
-import com.geekbrains.netty.common.ReceiveCommand;
+import com.geekbrains.netty.common.TransferCommand;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -17,18 +14,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import static com.geekbrains.netty.server.NettyServer.serverBasePath;
 @Slf4j
-public class ChunkHandler extends ChannelInboundHandlerAdapter {
+public class ChunkedHandler extends ChannelInboundHandlerAdapter {
 
     private RandomAccessFile ras;
     private FileChannel fileChannel;
-    private ReceiveCommand command;
+    private TransferCommand command;
     private Path filePath;
     private long fileSize;
 
-    private Path basePath = Paths.get("src/main/java/com/geekbrains/netty/server/files");
+//    private Path serverBasePath = Paths.get("src/main/java/com/geekbrains/netty/server/files");
 
-    public ChunkHandler(ReceiveCommand command) {
+    public ChunkedHandler(TransferCommand command) {
         this.command = command;
     }
 
@@ -36,7 +34,7 @@ public class ChunkHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 
         fileSize = command.getFileSize();
-        filePath = basePath.resolve(command.getFile().toPath());
+        filePath = serverBasePath.resolve(command.getFile().toPath());
 
         //catch IOEx
         if (ras == null || fileChannel == null) {
@@ -68,7 +66,7 @@ public class ChunkHandler extends ChannelInboundHandlerAdapter {
         buf.release();
 //        log.info("GOT PART OF FILE: " + Files.size(filePath) + " OUT OF " + fileSize);
 
-        if (Files.size(filePath) >= fileSize) {
+        if (Files.size(filePath) == fileSize) {
             System.out.println("GOT FULL FILE");
             if (ras != null) {
 //                System.out.println("ras-");
@@ -78,7 +76,7 @@ public class ChunkHandler extends ChannelInboundHandlerAdapter {
 //                System.out.println("fCh-");
                 fileChannel.close();
             }
-            command.setCommand(Commands.RECEIVE_FILE_OK);
+            command.setCommand(Commands.TRANSFER_FILE_OK);
             ctx.writeAndFlush(command);
             NettyServer.commandReadyPipeline(ctx.pipeline());
         }
