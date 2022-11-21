@@ -1,11 +1,13 @@
 package com.geekbrains.netty.common;
 
 public enum Commands {
-    RECEIVE_FILE,
-    RECEIVE_FILE_READY,
-    RECEIVE_FILE_OK,
+    TRANSFER_FILE_NOTIFICATION,
+    TRANSFER_FILE_READY,
+    TRANSFER_FILE_OK,
     RENAME,
     DELETE,
-    CREATE
+    CREATE,
+    DATA_STRUCTURE_REQUEST,
+    DATA_STRUCTURE_RESPONSE,
 
 }

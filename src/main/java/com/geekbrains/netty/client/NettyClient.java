@@ -1,9 +1,9 @@
 package com.geekbrains.netty.client;
 
 import com.geekbrains.netty.common.Commands;
-import com.geekbrains.netty.common.ReceiveCommand;
+import com.geekbrains.netty.common.FileListCommand;
+import com.geekbrains.netty.common.TransferCommand;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.*;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -13,30 +13,27 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 import io.netty.handler.stream.ChunkedFile;
 import io.netty.handler.stream.ChunkedWriteHandler;
-import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+//import static com.geekbrains.netty.client.AppStarter.basePath;
 @Slf4j
 public class NettyClient {
 
+    private static Path basePath = Paths.get("src/main/java/com/geekbrains/netty/client/files");
+
     private static SocketChannel channel;
-//    private OnMessageReceived callback;
-    private static Path path;
 
-    private static String clientDir = "src/main/java/com/geekbrains/netty/client/files/";
+    protected static Controller controller;
 
-    private static String currentFile;
-    private static ByteBuffer buffer;
-    private static ByteBuf buf;
 
-    public static void start() {
-//        this.callback = callback;
+    public static void start(Controller control) {
+
+        controller = control;
         new Thread(() -> {
             EventLoopGroup main = new NioEventLoopGroup();
             try {
@@ -47,9 +44,11 @@ public class NettyClient {
                             @Override
                             protected void initChannel(SocketChannel ch) throws Exception {
                                 channel = ch;
-                                commandReadyPipeline(channel.pipeline());
+                                System.out.println("got channel: " + channel);
+                                commandReadPipeline(channel.pipeline());
                             }
                         }).connect("localhost", 8189).sync();
+                sendDataStructureRequest(Paths.get("")); //to guarantee request sent after channel established (in initialize doesn't work)
                 log.info("Client connected.");
                 future.channel().closeFuture().sync();
             } catch (Exception e) {
@@ -61,19 +60,29 @@ public class NettyClient {
         }).start();
     }
 
-    public static void sendFileCommand(Path filePath) throws IOException {
-        Path basePath = Paths.get("src/main/java/com/geekbrains/netty/client/files/");
+    public static void sendTransferNotification(Path filePath) throws IOException {
+        //won't be needed in future
         Path relativePath = basePath.relativize(filePath);
-        channel.writeAndFlush(new ReceiveCommand(Commands.RECEIVE_FILE, relativePath.toFile(), Files.size(filePath)));
+        channel.writeAndFlush(new TransferCommand(
+                Commands.TRANSFER_FILE_NOTIFICATION,
+                relativePath.toFile(),
+                Files.size(filePath)));
     }
 
-    public static void sendFile(Path filePath) throws IOException {
-        fileReadyPipeline(channel.pipeline());
+    public static void transfer(Path filePath) throws IOException {
+        fileTransmitPipeline(channel.pipeline());
         channel.writeAndFlush(new ChunkedFile(filePath.toFile()));
-        commandReadyPipeline(channel.pipeline());
+        commandReadPipeline(channel.pipeline());
     }
 
-    protected static void commandReadyPipeline(ChannelPipeline pipeline) {
+    public static void sendDataStructureRequest(Path innerPath) {
+        channel.writeAndFlush(new FileListCommand(
+                Commands.DATA_STRUCTURE_REQUEST,
+                innerPath.toFile(),
+                null));
+    }
+
+    private static void commandReadPipeline(ChannelPipeline pipeline) {
 
         cleanPipeline(pipeline);
         pipeline.addLast("##commandInput", new ObjectDecoder(ClassResolvers.cacheDisabled(null)));
@@ -82,14 +91,15 @@ public class NettyClient {
 
     }
 
-    protected static void fileReadyPipeline(ChannelPipeline pipeline) {
+    private static void fileTransmitPipeline(ChannelPipeline pipeline) {
 
         cleanPipeline(pipeline);
+        pipeline.addLast("##commandInput", new ObjectDecoder(ClassResolvers.cacheDisabled(null)));//response
         pipeline.addLast("##fileOutput", new ChunkedWriteHandler());
 
     }
 
-    protected static void cleanPipeline(ChannelPipeline pipeline) {
+    private static void cleanPipeline(ChannelPipeline pipeline) {
 
         pipeline.toMap().forEach((K, V) -> {
             if (K.contains("##")) {
