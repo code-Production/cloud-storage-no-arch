@@ -1,5 +1,6 @@
 package com.geekbrains.netty.server;
 
+import com.geekbrains.netty.client.NettyClient;
 import com.geekbrains.netty.common.FileListCommand;
 import com.geekbrains.netty.common.TransferCommand;
 import io.netty.bootstrap.ServerBootstrap;
@@ -10,10 +11,13 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
+import io.netty.handler.stream.ChunkedFile;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -62,11 +66,19 @@ public class NettyServer {
 
     }
 
-    protected static void fileReadyPipeline(TransferCommand command, ChannelPipeline pipeline) {
+    protected static void fileReceivePipeline(TransferCommand command, ChannelPipeline pipeline) {
 
         cleanPipeline(pipeline);
         pipeline.addLast("##commandOutput", new ObjectEncoder()); //response
         pipeline.addLast("##fileInput", new ChunkedHandler(command));
+
+    }
+
+    protected static void fileTransmitPipeline(ChannelPipeline pipeline) {
+
+        cleanPipeline(pipeline);
+        pipeline.addLast("##commandInput", new ObjectDecoder(ClassResolvers.cacheDisabled(null)));//response
+        pipeline.addLast("##fileOutput", new ChunkedWriteHandler());
 
     }
 
@@ -79,6 +91,7 @@ public class NettyServer {
         });
 
     }
+
 
     private static Path getValidPath(Path innerPath) {
 

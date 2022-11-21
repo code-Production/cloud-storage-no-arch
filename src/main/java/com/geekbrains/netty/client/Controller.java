@@ -1,10 +1,15 @@
 package com.geekbrains.netty.client;
 
+import com.geekbrains.netty.common.RunnableInputWindow;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TextField;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.net.URL;
@@ -17,30 +22,28 @@ import static com.geekbrains.netty.client.AppStarter.clientBasePath;
 
 public class Controller implements Initializable {
 
+    private ListCellFactory factory;
+    protected Path serverInnerPath = Paths.get("");
+
     public ListView<String> serverFilesList;
-    public TextField consoleLog;
+    public TextArea consoleLog;
     public ListView<String> clientFilesList;
     public TextField clientPathField;
     public TextField serverPathField;
 
-    private FilesListCellFactory factory;
-    public Path serverInnerPath = Paths.get("");
+    public InputWindowController inputWindowController;
 
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
 
-        Platform.runLater(() -> NettyClient.start(this));
-
-        factory = new FilesListCellFactory();
+        NettyClient.start(this);
+        factory = new ListCellFactory();
         serverFilesList.setCellFactory(factory);
-        try {
-            initClientFilesList();
-            initClientFilesListListener();
-            initServerFilesListListener();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
+        initClientFilesList();
+        initClientFilesListListener();
+        initServerFilesListListener();
 
     }
 
@@ -54,7 +57,7 @@ public class Controller implements Initializable {
                         selectedString = selectedString.replace("[DIR]", "");
 
                         serverInnerPath = serverInnerPath.resolve(selectedString);
-                        System.out.println(serverInnerPath);
+//                        System.out.println(serverInnerPath);
                         NettyClient.sendDataStructureRequest(serverInnerPath);
                     }
                 }
@@ -62,8 +65,6 @@ public class Controller implements Initializable {
         });
 
     }
-
-
 
     protected void updateServerFilesList(List<String> list) {
 
@@ -73,8 +74,7 @@ public class Controller implements Initializable {
 
     }
 
-
-    private void initClientFilesListListener() throws IOException {
+    private void initClientFilesListListener() {
 
         clientFilesList.setOnMouseClicked((e) -> {
             if (e.getClickCount() == 2) {
@@ -93,7 +93,7 @@ public class Controller implements Initializable {
                     if (Files.isDirectory(newBasePath)) {
                         clientFilesList.scrollTo(0);
                         clientBasePath = newBasePath;
-                        consoleLog.clear();
+//                        consoleLog.clear();
                         updateClientFilesList();
                         clientPathField.setText(clientBasePath.toString());
                     }
@@ -108,7 +108,7 @@ public class Controller implements Initializable {
         updateClientFilesList();
     }
 
-    private void updateClientFilesList() {
+    public void updateClientFilesList() {
 
         clientFilesList.getItems().clear();
         clientFilesList.getItems().add("..");
@@ -121,7 +121,8 @@ public class Controller implements Initializable {
         }
     }
 
-    public void setClientPath(ActionEvent actionEvent) throws IOException {
+    @FXML
+    protected void setClientPath(ActionEvent actionEvent) throws IOException {
         String text = clientPathField.getText().trim();
         Path newPath;
 
@@ -171,9 +172,68 @@ public class Controller implements Initializable {
 
     }
 
-
     public void setServerPath(ActionEvent actionEvent) {
         System.out.println("INPUT: " + serverPathField.getText());
-        NettyClient.sendDataStructureRequest(Paths.get(serverPathField.getText().trim())); //.trim()
+        NettyClient.sendDataStructureRequest(Paths.get(serverPathField.getText().trim()));
+    }
+
+    public void showIfYesThenRun(String message, Runnable runnable) {
+
+        Platform.runLater(() -> {
+            Alert alert = new Alert(
+                    Alert.AlertType.CONFIRMATION,
+                    message,
+                    ButtonType.YES,
+                    ButtonType.NO);
+            alert.showAndWait();
+
+            if (alert.getResult().equals(ButtonType.YES)) {
+                runnable.run();
+            }
+        });
+    }
+
+    public void showAlert(Alert.AlertType type, String message) {
+        Platform.runLater(() -> {
+            new Alert(type, message, ButtonType.CLOSE).showAndWait();
+        });
+    }
+
+    public void showInputWindow(String message, RunnableInputWindow runnableWindow) {
+
+
+        Stage extraStage = new Stage();
+        extraStage.setTitle("Rename window");
+        FXMLLoader loader = new FXMLLoader();
+        loader.setLocation(this.getClass().getResource("/cloud-storage-client-input-window.fxml"));
+//        InputWindowController controller;
+        try {
+            Parent parent = loader.load();
+            inputWindowController = loader.getController();
+            inputWindowController.setStage(extraStage);
+            inputWindowController.setInputWindowLabel(message);
+            inputWindowController.setRunnableInputWindow(runnableWindow);
+            Scene extraScene = new Scene(parent);
+            extraStage.setScene(extraScene);
+            extraStage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+//[DIR] bug
+    public boolean fileAlreadyExistsOnServer(String fileName) {
+        for (String s : serverFilesList.getItems()) {
+
+            if (s.replace("[DIR]", "").equals(fileName)) return true; //in case it is folder
+        }
+        return false;
+    }
+
+    public boolean fileAlreadyExistsOnClient(String fileName) {
+        for (String s : clientFilesList.getItems()) {
+            if (s.equals(fileName)) return true;
+        }
+        return false;
     }
 }
