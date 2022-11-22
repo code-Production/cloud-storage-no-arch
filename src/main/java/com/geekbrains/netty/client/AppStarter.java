@@ -17,9 +17,10 @@ public class AppStarter extends Application {
     }
 
     public static Path clientBasePath = Paths.get("C:/CLOUD_DATA");
+
     @Override
     public void start(Stage primaryStage) throws Exception {
-        primaryStage.setTitle("Network chat client");
+        primaryStage.setTitle("Cloud storage");
         FXMLLoader loader = new FXMLLoader();
         loader.setLocation(this.getClass().getResource("/cloud-storage-client.fxml"));
         Parent parent = loader.load();
