@@ -1,6 +1,5 @@
 package com.geekbrains.netty.client;
 
-import com.geekbrains.netty.common.RunnableInputWindow;
 import javafx.event.ActionEvent;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;

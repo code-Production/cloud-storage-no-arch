@@ -12,11 +12,19 @@ import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.sql.SQLException;
 
 import static com.geekbrains.netty.server.NettyServer.serverBasePath;
 
 @Slf4j
 public class CommandHandler extends SimpleChannelInboundHandler<AbstractCommand> {
+
+    private final UserService userService;
+
+
+    public CommandHandler(UserService userService) {
+        this.userService = userService;
+    }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, AbstractCommand msg) throws Exception {
@@ -25,29 +33,36 @@ public class CommandHandler extends SimpleChannelInboundHandler<AbstractCommand>
                 TransferCommand command = (TransferCommand) msg;
                 command.setCommand(Commands.TRANSFER_FILE_READY);
                 ctx.writeAndFlush(command);
+                System.out.println(command.getFile().toString());
                 NettyServer.fileReceivePipeline(command, ctx.pipeline());
-                System.out.println("TRANSFER_FILE_NOTIFICATION " + msg);
+//                System.out.println("TRANSFER_FILE_NOTIFICATION " + msg);
+                log.debug("Got TRANSFER_FILE_NOTIFICATION command.");
             }
             case DATA_STRUCTURE_REQUEST -> {
                 FileListCommand command = (FileListCommand) msg;
                 command.setCommand(Commands.DATA_STRUCTURE_RESPONSE);
-                NettyServer.writeFolderStructure(command);
-                System.out.println("COMMAND: " + command.getFolder().toString());
+                NettyServer.writeFolderStructure(ctx.channel(), command);
+//                System.out.println("COMMAND: " + command.getFolder().toString());
                 ctx.writeAndFlush(command);
-                System.out.println("DATA_STRUCTURE_REQUEST " + msg);
+//                System.out.println("DATA_STRUCTURE_REQUEST " + msg);
+                log.debug("Got DATA_STRUCTURE_REQUEST command.");
             }
             case RECEIVE_FILE_REQUEST_INFO -> {
                 ReceiveCommand command = (ReceiveCommand) msg;
                 command.setCommand(Commands.RECEIVE_FILE_INFO);
-                long fileSize = Files.size(serverBasePath.resolve(command.getFile().toPath()));
+//                long fileSize = Files.size(serverBasePath.resolve(command.getFile().toPath()));
+                long fileSize = Files.size(NettyServer.getClientBasePath(ctx.channel()).resolve(command.getFile().toPath()));
                 command.setFileSize(fileSize);
                 ctx.writeAndFlush(command);
-                System.out.println("RECEIVE_FILE_REQUEST_INFO");
+//                System.out.println("RECEIVE_FILE_REQUEST_INFO");
+                log.debug("Got RECEIVE_FILE_REQUEST_INFO command.");
             }
             case RECEIVE_FILE_READY -> {
-                System.out.println("RECEIVE_FILE_READY");
+//                System.out.println("RECEIVE_FILE_READY");
+                log.debug("Got RECEIVE_FILE_READY command");
                 ReceiveCommand command = (ReceiveCommand) msg;
-                Path filePath = serverBasePath.resolve(command.getFile().toPath());
+//                Path filePath = serverBasePath.resolve(command.getFile().toPath());
+                Path filePath = NettyServer.getClientBasePath(ctx.channel()).resolve(command.getFile().toPath());
                 NettyServer.fileTransmitPipeline(ctx.pipeline());
                 try {
                     ctx.channel().writeAndFlush(new ChunkedFile(filePath.toFile()));
@@ -62,21 +77,24 @@ public class CommandHandler extends SimpleChannelInboundHandler<AbstractCommand>
             }
             case RECEIVE_FILE_OK -> {
                 ReceiveCommand command = (ReceiveCommand) msg;
-                System.out.println("RECEIVE_FILE_OK");
+//                System.out.println("RECEIVE_FILE_OK");
                 String response = String.format(
-                        "File '%s' was successfully downloaded to the client.\n",
+                        "File '%s' was successfully downloaded to the client.",
                         command.getFile()
                 );
-                log.debug(response.trim());
+                log.debug(response);
             }
             case RENAME_REQUEST -> {
-                System.out.println("RENAME_REQUEST");
+//                System.out.println("RENAME_REQUEST");
+                log.debug("Got RENAME_REQUEST command.");
                 RenameCommand command = (RenameCommand) msg;
                 command.setCommand(Commands.RENAME_RESPONSE);
-                File sourceFile = new File(serverBasePath.toFile(), command.getSourceFile().toString());
-                System.out.println("sourceFile " + sourceFile);
-                File newFile = new File(serverBasePath.toFile(), command.getNewFile().toString());
-                System.out.println("newFile " + newFile);
+                File sourceFile = new File(
+                        NettyServer.getClientBasePath(ctx.channel()).toFile(), command.getSourceFile().toString());
+//                System.out.println("sourceFile " + sourceFile);
+                File newFile = new File(
+                        NettyServer.getClientBasePath(ctx.channel()).toFile(), command.getNewFile().toString());
+//                System.out.println("newFile " + newFile);
                 String response;
                 if (Files.isReadable(sourceFile.toPath())) {
                     if (sourceFile.renameTo(newFile)) {
@@ -100,6 +118,7 @@ public class CommandHandler extends SimpleChannelInboundHandler<AbstractCommand>
                 }
                 command.setResponse(response);
                 ctx.writeAndFlush(command);
+                log.debug(response);
             }
             case DELETE_REQUEST -> {
                 DeleteCommand command = (DeleteCommand) msg;
@@ -107,7 +126,8 @@ public class CommandHandler extends SimpleChannelInboundHandler<AbstractCommand>
                 String response;
                 File innerFile = command.getFile();
                 try {
-                    Files.delete(serverBasePath.resolve(innerFile.toPath()));
+//                    Files.delete(serverBasePath.resolve(innerFile.toPath()));
+                    Files.delete(NettyServer.getClientBasePath(ctx.channel()).resolve(innerFile.toPath()));
                     response = String.format("File '%s' was successfully deleted from cloud.\n", innerFile);
                     command.setSuccess(true);
                 } catch (NoSuchFileException e) {
@@ -122,6 +142,7 @@ public class CommandHandler extends SimpleChannelInboundHandler<AbstractCommand>
                 }
                 command.setResponse(response);
                 ctx.writeAndFlush(command);
+                log.debug(response);
             }
             case MKDIR_REQUEST -> {
                 MkdirCommand command = (MkdirCommand) msg;
@@ -129,7 +150,8 @@ public class CommandHandler extends SimpleChannelInboundHandler<AbstractCommand>
                 File folderFile = command.getFolderFile();
                 String response;
                 try {
-                    Path folderPath = serverBasePath.resolve(folderFile.toPath());
+//                    Path folderPath = serverBasePath.resolve(folderFile.toPath());
+                    Path folderPath = NettyServer.getClientBasePath(ctx.channel()).resolve(folderFile.toPath());
                     Files.createDirectory(folderPath);
                     command.setSuccess(true);
                     response = String.format("New folder with name '%s' was successfully created in cloud.\n", folderFile);
@@ -139,6 +161,7 @@ public class CommandHandler extends SimpleChannelInboundHandler<AbstractCommand>
                 }
                 command.setResponse(response);
                 ctx.writeAndFlush(command);
+                log.debug(response);
             }
         }
 

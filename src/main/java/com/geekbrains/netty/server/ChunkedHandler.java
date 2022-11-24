@@ -34,13 +34,16 @@ public class ChunkedHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 
         fileSize = command.getFileSize();
-        filePath = serverBasePath.resolve(command.getFile().toPath());
-
+//        filePath = serverBasePath.resolve(command.getFile().toPath());
+        filePath = NettyServer.getClientBasePath(ctx.channel()).resolve(command.getFile().toPath());
+        System.out.println("filePath:" + filePath);
         //catch IOEx
         //TODO check this out
         if (ras == null || fileChannel == null) {
+            log.debug("Process of receiving the file '{}' has started.", filePath.getFileName());
             if (Files.exists(filePath)) {
                 Files.delete(filePath);
+                Files.createFile(filePath);
             } else {
                 Files.createFile(filePath);
             }
@@ -68,7 +71,8 @@ public class ChunkedHandler extends ChannelInboundHandlerAdapter {
 //        log.info("GOT PART OF FILE: " + Files.size(filePath) + " OUT OF " + fileSize);
 
         if (Files.size(filePath) == fileSize) {
-            System.out.println("GOT FULL FILE");
+//            System.out.println("GOT FULL FILE");
+            log.debug("Process of receiving the file '{}' has ended successfully.", filePath.getFileName());
             if (ras != null) {
 //                System.out.println("ras-");
                 ras.close();
