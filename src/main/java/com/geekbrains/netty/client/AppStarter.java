@@ -1,14 +1,17 @@
 package com.geekbrains.netty.client;
 
 import javafx.application.Application;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+@Slf4j
 public class AppStarter extends Application {
     private Controller controller;
 
@@ -17,6 +20,9 @@ public class AppStarter extends Application {
     }
 
     public static Path clientBasePath = Paths.get("C:/CLOUD_DATA");
+
+    public static boolean isBusy = false;
+
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -34,7 +40,8 @@ public class AppStarter extends Application {
     @Override
     public void stop() throws Exception {
         super.stop();
-//        controller.closeApplication(new ActionEvent());
+        controller.closeApplication(new ActionEvent());
+        log.info("Application was closed.");
     }
 
 }

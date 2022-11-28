@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static com.geekbrains.netty.client.AppStarter.clientBasePath;
+import static com.geekbrains.netty.client.AppStarter.isBusy;
 
 @Slf4j
 public class ChunkedHandler extends ChannelInboundHandlerAdapter {
@@ -37,15 +38,16 @@ public class ChunkedHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 
         fileSize = command.getFileSize();
-        System.out.println("filesize: " + fileSize);
+//        System.out.println("filesize: " + fileSize);
         filePath = clientBasePath.resolve(command.getFile().getName());
-        System.out.println("filePath: " + filePath);
+//        System.out.println("filePath: " + filePath);
         //catch IOEx
         //TODO check this out
 
         if (ras == null || fileChannel == null) {
             if (Files.exists(filePath)) {
                 Files.delete(filePath);
+                Files.createFile(filePath);
             } else {
                 Files.createFile(filePath);
             }
@@ -56,11 +58,11 @@ public class ChunkedHandler extends ChannelInboundHandlerAdapter {
         ByteBuffer buffer = buf.nioBuffer();
 
         if (ras == null) {
-            System.out.println("ras+");
+//            System.out.println("ras+");
             ras = new RandomAccessFile(filePath.toString(), "rw");
         }
         if (fileChannel == null) {
-            System.out.println("fCh+");
+//            System.out.println("fCh+");
             fileChannel = ras.getChannel();
         }
 
@@ -70,23 +72,28 @@ public class ChunkedHandler extends ChannelInboundHandlerAdapter {
         }
 
         buf.release();
-        log.info("GOT PART OF FILE: " + Files.size(filePath) + " OUT OF " + fileSize);
+//        log.info("GOT PART OF FILE: " + Files.size(filePath) + " OUT OF " + fileSize);
 
         if (Files.size(filePath) == fileSize) {
-            System.out.println("GOT FULL FILE");
+//            System.out.println("GOT FULL FILE");
             if (ras != null) {
-                System.out.println("ras-");
+//                System.out.println("ras-");
                 ras.close();
             }
             if (fileChannel != null) {
-                System.out.println("fCh-");
+//                System.out.println("fCh-");
                 fileChannel.close();
             }
             command.setCommand(Commands.RECEIVE_FILE_OK);
             ctx.writeAndFlush(command);
             NettyClient.commandReadPipeline(ctx.pipeline());
-            Platform.runLater(() -> NettyClient.controller.updateClientFilesList());
-
+            String response = String.format("File '%s' was successfully received from cloud.\n", command.getFile().getName());
+            Platform.runLater(() -> {
+                NettyClient.controller.updateClientFilesList();
+                NettyClient.controller.consoleLog.appendText(response);
+            });
+            log.info(response.trim());
+            isBusy = false;
         }
     }
 

@@ -1,4 +1,4 @@
-package com.geekbrains.netty.common;
+package com.geekbrains.netty.client;
 
 import javafx.scene.control.TextField;
 

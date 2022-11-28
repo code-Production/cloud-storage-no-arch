@@ -1,6 +1,5 @@
 package com.geekbrains.netty.client;
 
-import com.geekbrains.netty.common.RunnableInputWindow;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -9,7 +8,9 @@ import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URL;
@@ -20,8 +21,17 @@ import java.util.stream.Stream;
 
 import static com.geekbrains.netty.client.AppStarter.clientBasePath;
 
+@Slf4j
 public class Controller implements Initializable {
 
+    public VBox registerWindow;
+    public VBox loginWindow;
+    public VBox mainWindow;
+    public TextField loginFieldLoginWindow;
+    public PasswordField passwordFieldLoginWindow;
+    public TextField usernameFieldRegisterWindow;
+    public TextField loginFieldRegisterWindow;
+    public PasswordField passwordFieldRegisterWindow;
     private ListCellFactory factory;
     protected Path serverInnerPath = Paths.get("");
 
@@ -40,11 +50,16 @@ public class Controller implements Initializable {
         NettyClient.start(this);
         factory = new ListCellFactory();
         serverFilesList.setCellFactory(factory);
+        clientFilesList.setCellFactory(factory);
 
-        initClientFilesList();
+//        updateClientFilesList();
         initClientFilesListListener();
         initServerFilesListListener();
 
+    }
+
+    public void closeApplication(ActionEvent actionEvent) {
+        NettyClient.stop();
     }
 
     private void initServerFilesListListener() {
@@ -57,7 +72,7 @@ public class Controller implements Initializable {
                         selectedString = selectedString.replace("[DIR]", "");
 
                         serverInnerPath = serverInnerPath.resolve(selectedString);
-//                        System.out.println(serverInnerPath);
+                        System.out.println(serverInnerPath);
                         NettyClient.sendDataStructureRequest(serverInnerPath);
                     }
                 }
@@ -89,23 +104,21 @@ public class Controller implements Initializable {
                         }
                     } else {
                         newBasePath = clientBasePath.resolve(Paths.get(selectedString));
+                        System.out.println(newBasePath);
                     }
                     if (Files.isDirectory(newBasePath)) {
+                        System.out.println("directory");
                         clientFilesList.scrollTo(0);
                         clientBasePath = newBasePath;
 //                        consoleLog.clear();
                         updateClientFilesList();
                         clientPathField.setText(clientBasePath.toString());
                     }
+                    System.out.println(clientBasePath);
                 }
             }
         });
 
-    }
-
-    private void initClientFilesList() {
-        clientFilesList.setCellFactory(factory);
-        updateClientFilesList();
     }
 
     public void updateClientFilesList() {
@@ -115,9 +128,11 @@ public class Controller implements Initializable {
         try (Stream<Path> streamPath = Files.list(clientBasePath)) {
             clientFilesList.getItems().addAll(streamPath.map((path) -> path.getFileName().toString()).toList());
         } catch (AccessDeniedException e) {
-            consoleLog.setText("Access to this folder was denied by system.");
+            consoleLog.appendText("Access to this folder was denied by system.\n");
         } catch (IOException e) {
-            e.printStackTrace();
+            String response = "Unknown I/O error occurred while updating client file list.\n";
+            consoleLog.appendText(response);
+            log.error(response.trim());
         }
     }
 
@@ -166,14 +181,14 @@ public class Controller implements Initializable {
 
 
         clientPathField.setText(clientBasePath.toString());
-        updateClientFilesList(); //platform
-        consoleLog.clear();
+        updateClientFilesList();
+//        consoleLog.clear();
 
 
     }
 
     public void setServerPath(ActionEvent actionEvent) {
-        System.out.println("INPUT: " + serverPathField.getText());
+//        System.out.println("INPUT: " + serverPathField.getText());
         NettyClient.sendDataStructureRequest(Paths.get(serverPathField.getText().trim()));
     }
 
@@ -203,10 +218,10 @@ public class Controller implements Initializable {
 
 
         Stage extraStage = new Stage();
-        extraStage.setTitle("Rename window");
+        //TODO maybe make it settable
+        extraStage.setTitle("Cloud storage input window");
         FXMLLoader loader = new FXMLLoader();
         loader.setLocation(this.getClass().getResource("/cloud-storage-client-input-window.fxml"));
-//        InputWindowController controller;
         try {
             Parent parent = loader.load();
             inputWindowController = loader.getController();
@@ -221,10 +236,9 @@ public class Controller implements Initializable {
         }
 
     }
-//[DIR] bug
+
     public boolean fileAlreadyExistsOnServer(String fileName) {
         for (String s : serverFilesList.getItems()) {
-
             if (s.replace("[DIR]", "").equals(fileName)) return true; //in case it is folder
         }
         return false;
@@ -235,5 +249,44 @@ public class Controller implements Initializable {
             if (s.equals(fileName)) return true;
         }
         return false;
+    }
+
+    public void authorization(ActionEvent actionEvent) {
+        NettyClient.sendAuthInfo(
+                loginFieldLoginWindow.getText().trim(),
+                passwordFieldLoginWindow.getText().trim()
+        );
+        passwordFieldLoginWindow.clear();
+    }
+
+    public void registration(ActionEvent actionEvent) {
+        NettyClient.sendRegisterInfo(
+                usernameFieldRegisterWindow.getText().trim(),
+                loginFieldRegisterWindow.getText().trim(),
+                passwordFieldRegisterWindow.getText().trim()
+        );
+        passwordFieldRegisterWindow.clear();
+    }
+
+    public void showLoginWindow() {
+        loginWindow.setVisible(true);
+        registerWindow.setVisible(false);
+        mainWindow.setVisible(false);
+    }
+
+    public void showRegisterWindow(ActionEvent actionEvent) {
+        loginWindow.setVisible(false);
+        registerWindow.setVisible(true);
+        mainWindow.setVisible(false);
+    }
+
+    public void showMainWindow() {
+        loginWindow.setVisible(false);
+        registerWindow.setVisible(false);
+        mainWindow.setVisible(true);
+    }
+
+    public void startNetworkService() {
+        NettyClient.start(this);
     }
 }
